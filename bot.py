@@ -106,17 +106,33 @@ def get_plans(message):
 
 def finalize_channel(message, ch_id, ch_name):
     try:
-        raw_plans = message.text.split(',')
+        raw_text = message.text.strip()
         plans_dict = {}
-        for p in raw_plans:
-            t, pr = p.strip().split(':')
-            plans_dict[t] = pr
         
-        channels_col.update_one({"channel_id": ch_id}, {"$set": {"name": ch_name, "plans": plans_dict, "admin_id": ADMIN_ID}}, upsert=True)
+        for p in raw_text.split(','):
+            if ':' in p:
+                parts = p.split(':')
+                if len(parts) == 2:
+                    t = str(parts[0].strip())
+                    pr = str(parts[1].strip())
+                    if t.isdigit() and pr.isdigit():
+                        plans_dict[t] = pr
+
+        if not plans_dict:
+            bot.send_message(ADMIN_ID, "❌ Invalid format. Please use `Min:Price, Min:Price`. Use /add to retry.")
+            return
+        
+        channels_col.update_one(
+            {"channel_id": int(ch_id)}, 
+            {"$set": {"name": str(ch_name), "plans": plans_dict, "admin_id": int(ADMIN_ID)}}, 
+            upsert=True
+        )
+        
         bot_username = bot.get_me().username
         bot.send_message(ADMIN_ID, f"✅ Setup Successful!\n\nInvite Link for users:\n`https://t.me/{bot_username}?start={ch_id}`", parse_mode="Markdown")
-    except:
-        bot.send_message(ADMIN_ID, "❌ Invalid format. Please use `Min:Price, Min:Price`. Use /add to retry.")
+    
+    except Exception as e:
+        bot.send_message(ADMIN_ID, f"❌ Error: {str(e)}\n\nPlease use /add to retry.")
 
 # --- USER: PAYMENT FLOW ---
 
